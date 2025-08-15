@@ -2,6 +2,13 @@
 
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
+import {
+  getProducts,
+  addProduct,
+  addProductsBulk,
+  updateProduct,
+  deleteProduct,
+} from "@/components/utils/api";
 
 type Product = {
   id: number;
@@ -42,7 +49,9 @@ function ProductModal({
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white p-6 rounded-xl w-96 shadow-lg">
-        <h2 className="text-xl font-bold mb-4">{product ? "ویرایش محصول" : "افزودن محصول"}</h2>
+        <h2 className="text-xl font-bold mb-4">
+          {product ? "ویرایش محصول" : "افزودن محصول"}
+        </h2>
         <div className="flex flex-col gap-3">
           <input
             className="border p-2 rounded"
@@ -89,45 +98,86 @@ function ProductModal({
 }
 
 export default function ProductList() {
-  const [products, setProducts] = useState<Product[]>([
-    { id: 1, name: "محصول ۱", price: 1000, stock: 5 },
-    { id: 2, name: "محصول ۲", price: 2000, stock: 10 },
-  ]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined);
+  const [editingProduct, setEditingProduct] = useState<Product | undefined>(
+    undefined
+  );
 
-  const handleSave = (productData: Omit<Product, "id">) => {
-    if (editingProduct) {
-      const updated = products.map((p) =>
-        p.id === editingProduct.id ? { ...p, ...productData } : p
-      );
-      setProducts(updated);
-      toast.success("محصول ویرایش شد");
-      setEditingProduct(undefined);
-    } else {
-      const newProduct = { ...productData, id: Date.now() };
-      setProducts([...products, newProduct]);
-      toast.success("محصول اضافه شد");
+  useEffect(() => {
+    loadProducts();
+  }, []);
+
+  const loadProducts = async () => {
+    try {
+      const { data } = await getProducts();
+      setProducts(data);
+    } catch {
+      toast.error("خطا در دریافت محصولات");
     }
   };
 
-  const handleDelete = (id: number) => {
+  const handleSave = async (productData: Omit<Product, "id">) => {
+    try {
+      if (editingProduct) {
+        await updateProduct(editingProduct.id, productData);
+        toast.success("محصول ویرایش شد");
+        setEditingProduct(undefined);
+      } else {
+        await addProduct(productData);
+        toast.success("محصول اضافه شد");
+      }
+      loadProducts();
+    } catch {
+      toast.error("خطا در ذخیره محصول");
+    }
+  };
+
+  const handleBulkAdd = async () => {
+    const bulkProducts = [
+      { name: "محصول تست ۱", price: 1000, stock: 5 },
+      { name: "محصول تست ۲", price: 2000, stock: 8 },
+    ];
+    try {
+      await addProductsBulk(bulkProducts);
+      toast.success("چند محصول با موفقیت اضافه شد");
+      loadProducts();
+    } catch {
+      toast.error("خطا در افزودن چندمحصولی");
+    }
+  };
+
+  const handleDelete = async (id: number) => {
     if (!confirm("آیا مطمئن هستید می‌خواهید حذف کنید؟")) return;
-    setProducts(products.filter((p) => p.id !== id));
-    toast.success("محصول حذف شد");
+    try {
+      await deleteProduct(id);
+      toast.success("محصول حذف شد");
+      loadProducts();
+    } catch {
+      toast.error("خطا در حذف محصول");
+    }
   };
 
   return (
     <div className="w-full">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">لیست محصولات</h2>
-        <button
-          className="bg-green-500 text-white px-4 py-2 rounded"
-          onClick={() => setIsModalOpen(true)}
-        >
-          افزودن محصول
-        </button>
+        <div className="flex gap-2">
+          <button
+            className="bg-green-500 text-white px-4 py-2 rounded"
+            onClick={() => setIsModalOpen(true)}
+          >
+            افزودن محصول
+          </button>
+          <button
+            className="bg-purple-500 text-white px-4 py-2 rounded"
+            onClick={handleBulkAdd}
+          >
+            افزودن چندمحصولی
+          </button>
+        </div>
       </div>
+
       <table className="w-full border border-gray-300 rounded-lg overflow-hidden">
         <thead className="bg-gray-100">
           <tr>
