@@ -5,6 +5,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import axios from "axios";
 
 const schema = z.object({
   username: z.string().min(3, "نام کاربری باید حداقل ۳ کاراکتر باشد"),
@@ -24,14 +25,22 @@ export default function LoginForm() {
     resolver: zodResolver(schema),
   });
 
-  const onSubmit = (data: FormData) => {
-    toast.success("ورود موفقیت‌آمیز");
+  const onSubmit = async (data: FormData) => {
+    try {
+      const res = await axios.post("http://127.0.0.1:8000/api/auth/login", data);
 
-   
-    setTimeout(() => {
-    router.push("/admin/dashboard");
-    }, 1000);
+      
+      const token = res.data.token;
+      localStorage.setItem("token", token);
 
+      toast.success("ورود موفقیت‌آمیز");
+
+      setTimeout(() => {
+        router.push("/admin/dashboard");
+      }, 1000);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "خطا در ورود");
+    }
   };
 
   return (
@@ -42,7 +51,6 @@ export default function LoginForm() {
         </h1>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-         
           <div>
             <label className="block text-sm font-medium text-gray-700">
               نام کاربری
@@ -59,7 +67,6 @@ export default function LoginForm() {
             )}
           </div>
 
-          
           <div>
             <label className="block text-sm font-medium text-gray-700">
               رمز عبور
@@ -77,7 +84,6 @@ export default function LoginForm() {
             )}
           </div>
 
-          
           <button
             type="submit"
             className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition-colors"
