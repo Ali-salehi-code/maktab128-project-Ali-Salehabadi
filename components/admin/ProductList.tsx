@@ -101,43 +101,50 @@ export default function ProductList() {
         <table className="w-full border-collapse border border-gray-300 text-sm">
           <thead className="bg-gray-100">
             <tr>
-              <th className="border px-2 py-1">نام</th>
-              <th className="border px-2 py-1">قیمت</th>
-              <th className="border px-2 py-1">موجودی</th>
-              <th className="border px-2 py-1">عملیات</th>
+            <th className="border px-4 py-2">Name</th>
+            <th className="border px-4 py-2">Price</th>
+            <th className="border px-4 py-2">Quantity</th>
+            <th className="border px-4 py-2">Brand</th>
+            <th className="border px-4 py-2">Images</th>
+            <th className="border px-4 py-2">Category</th>
+            <th className="border px-4 py-2">Subcategory</th>
+            <th className="border px-4 py-2">Description</th>
+            <th className="border px-4 py-2">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {products.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="text-center py-4">
-                  محصولی وجود ندارد
-                </td>
-              </tr>
-            ) : (
-              products.map((p) => (
-                <tr key={p.id}>
-                  <td className="border px-2 py-1">{p.name}</td>
-                  <td className="border px-2 py-1">{p.price}</td>
-                  <td className="border px-2 py-1">{p.stock}</td>
-                  <td className="border px-2 py-1 flex gap-2">
-                    <button
-                      onClick={() => openEditModal(p)}
-                      className="bg-blue-500 text-white px-2 py-1 rounded"
-                    >
-                      ویرایش
-                    </button>
-                    <button
-                      onClick={() => handleDelete(p.id)}
-                      className="bg-red-500 text-white px-2 py-1 rounded"
-                    >
-                      حذف
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
+          {products.map((product) => (
+            <tr key={product.id} className="text-center">
+              <td className="border px-4 py-2">{product.name}</td>
+              <td className="border px-4 py-2">{product.price}</td>
+              <td className="border px-4 py-2">{product.stock}</td>
+              <td className="border px-4 py-2">{(product as any).brand}</td>
+              <td className="border px-4 py-2">
+                {(product as any).images?.map((url: string, index: number) => (
+                  <img key={index} src={url} alt={product.name} className="h-16 mx-1 inline-block" />
+                ))}
+              </td>
+              <td className="border px-4 py-2">{(product as any).category}</td>
+              <td className="border px-4 py-2">{(product as any).subcategory}</td>
+              <td className="border px-4 py-2">{(product as any).description}</td>
+              <td className="border px-4 py-2">
+                <button
+                  onClick={() => handleDelete(product.id)}
+                  className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
+                >
+                  Delete
+                </button>
+              </td>
+            </tr>
+          ))}
+          {products.length === 0 && (
+            <tr>
+              <td colSpan={9} className="border px-4 py-2 text-center">
+                No products found.
+              </td>
+            </tr>
+          )}
+        </tbody>
         </table>
       )}
 
