@@ -1,16 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import toast from "react-hot-toast";
-import {
-  getProducts,
-  addProduct,
-  updateProduct,
-  deleteProduct,
-} from "@/components/utils/api";
+import { useEffect, useState } from "react";
+import axios from "axios";
 
 type Product = {
-  id: number;
+  _id: string;
   name: string;
   price: number;
   quantity: number;
@@ -21,250 +15,325 @@ type Product = {
   description: string;
 };
 
-function ProductModal({
-  isOpen,
-  onClose,
-  onSave,
-  product,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (product: Omit<Product, "id">) => void;
-  product?: Product;
-}) {
-  const [name, setName] = useState(product?.name || "");
-  const [price, setPrice] = useState(product?.price || 0);
-  const [quantity, setQuantity] = useState(product?.quantity || 0);
-  const [brand, setBrand] = useState(product?.brand || "");
-  const [images, setImages] = useState(product?.images.join(",") || "");
-  const [category, setCategory] = useState(product?.category || "");
-  const [subcategory, setSubcategory] = useState(product?.subcategory || "");
-  const [description, setDescription] = useState(product?.description || "");
+export default function ProductList() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [page, setPage] = useState(1);
+  const [perPage] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
+
+  const [showModal, setShowModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  const [filters, setFilters] = useState({
+    name: "",
+    brand: "",
+    category: "",
+  });
+
+  const [formData, setFormData] = useState<Omit<Product, "_id">>({
+    name: "",
+    price: 0,
+    quantity: 0,
+    brand: "",
+    images: [],
+    category: "",
+    subcategory: "",
+    description: "",
+  });
+
+  const loadProducts = async (pageNumber: number = 1) => {
+    try {
+      setLoading(true);
+      const res = await axios.get("http://127.0.0.1:8000/api/products", {
+        params: { page: pageNumber, per_page: perPage, ...filters },
+      });
+
+      setProducts(res.data?.data?.products ?? []);
+      setTotalPages(res.data?.total_pages ?? 1);
+      setPage(res.data?.page ?? pageNumber);
+    } catch (err) {
+      console.error(" Error loading products", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (product) {
-      setName(product.name);
-      setPrice(product.price);
-      setQuantity(product.quantity);
-      setBrand(product.brand);
-      setImages(product.images.join(","));
-      setCategory(product.category);
-      setSubcategory(product.subcategory);
-      setDescription(product.description);
-    } else {
-      setName("");
-      setPrice(0);
-      setQuantity(0);
-      setBrand("");
-      setImages("");
-      setCategory("");
-      setSubcategory("");
-      setDescription("");
-    }
-  }, [product]);
+    loadProducts(1);
+    
+  }, [filters]);
 
-  if (!isOpen) return null;
-
-  const handleSave = () => {
-    if (!name || price <= 0 || quantity < 0) {
-      toast.error("لطفاً فیلدهای ضروری را درست پر کنید");
-      return;
-    }
-    onSave({
-      name,
-      price,
-      quantity,
-      brand,
-      images: images.split(",").map((img) => img.trim()),
-      category,
-      subcategory,
-      description,
+  const openAddModal = () => {
+    setEditingProduct(null);
+    setFormData({
+      name: "",
+      price: 0,
+      quantity: 0,
+      brand: "",
+      images: [],
+      category: "",
+      subcategory: "",
+      description: "",
     });
-    onClose();
+    setShowModal(true);
+  };
+
+  const openEditModal = (product: Product) => {
+    setEditingProduct(product);
+    setFormData({
+      name: product.name,
+      price: product.price,
+      quantity: product.quantity,
+      brand: product.brand,
+      images: product.images,
+      category: product.category,
+      subcategory: product.subcategory,
+      description: product.description,
+    });
+    setShowModal(true);
+  };
+
+  const handleSave = async () => {
+    try {
+      if (editingProduct) {
+        await axios.put(
+          `http://127.0.0.1:8000/api/products/${editingProduct._id}`,
+          formData
+        );
+      } else {
+        await axios.post("http://127.0.0.1:8000/api/products", formData);
+      }
+      setShowModal(false);
+      loadProducts(page);
+    } catch (err) {
+      console.error(" Error saving product", err);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("آیا مطمئن هستید؟")) return;
+    try {
+      await axios.delete(`http://127.0.0.1:8000/api/products/${id}`);
+      loadProducts(page);
+    } catch (err) {
+      console.error(" Error deleting product", err);
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-lg p-6 overflow-auto max-h-[90vh]">
-        <h2 className="text-xl font-bold mb-4">{product ? "ویرایش محصول" : "افزودن محصول"}</h2>
-        <div className="flex flex-col gap-3">
-          <input
-            className="border p-2 rounded"
-            placeholder="نام محصول"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <input
-            type="number"
-            className="border p-2 rounded"
-            placeholder="قیمت"
-            value={price}
-            onChange={(e) => setPrice(Number(e.target.value))}
-          />
-          <input
-            type="number"
-            className="border p-2 rounded"
-            placeholder="تعداد"
-            value={quantity}
-            onChange={(e) => setQuantity(Number(e.target.value))}
-          />
-          <input
-            className="border p-2 rounded"
-            placeholder="برند"
-            value={brand}
-            onChange={(e) => setBrand(e.target.value)}
-          />
-          <input
-            className="border p-2 rounded"
-            placeholder="آدرس تصاویر (کاما جدا شده)"
-            value={images}
-            onChange={(e) => setImages(e.target.value)}
-          />
-          <input
-            className="border p-2 rounded"
-            placeholder="دسته‌بندی"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-          />
-          <input
-            className="border p-2 rounded"
-            placeholder="زیر دسته‌بندی"
-            value={subcategory}
-            onChange={(e) => setSubcategory(e.target.value)}
-          />
-          <textarea
-            className="border p-2 rounded"
-            placeholder="توضیحات"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-        </div>
-        <div className="flex justify-end gap-2 mt-4">
-          <button className="px-4 py-2 bg-gray-300 rounded" onClick={onClose}>
-            بستن
-          </button>
-          <button className="px-4 py-2 bg-blue-500 text-white rounded" onClick={handleSave}>
-            {product ? "ویرایش" : "ذخیره"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+    <div className="p-4">
+      <h1 className="text-xl font-bold mb-4"> مدیریت محصولات</h1>
 
-export default function ProductList() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined);
-
-  // useEffect(() => {
-  //   loadProducts();
-  // }, []);
-
-  // const loadProducts = async () => {
-  //   try {
-  //     const response = await getProducts();
-  //     const data = Array.isArray(response.data) ? response.data : response;
-  //     setProducts(data);
-  //   } catch (error) {
-  //     toast.error("خطا در دریافت محصولات");
-  //     console.error(error);
-  //   }
-  // };
-
-  // const handleSave = async (productData: Omit<Product, "id">) => {
-  //   try {
-  //     if (editingProduct) {
-  //       await updateProduct(editingProduct.id, productData);
-  //       toast.success("محصول ویرایش شد");
-  //       setEditingProduct(undefined);
-  //     } else {
-  //       await addProduct(productData);
-  //       toast.success("محصول اضافه شد");
-  //     }
-  //     loadProducts();
-  //   } catch (error) {
-  //     toast.error("خطا در ذخیره محصول");
-  //     console.error(error);
-  //   }
-  // };
-
-  // const handleDelete = async (id: number) => {
-  //   if (!confirm("آیا مطمئن هستید می‌خواهید حذف کنید؟")) return;
-  //   try {
-  //     await deleteProduct(id);
-  //     toast.success("محصول حذف شد");
-  //     loadProducts();
-  //   } catch (error) {
-  //     toast.error("خطا در حذف محصول");
-  //     console.error(error);
-  //   }
-  // };
-
-  return (
-    <div className="w-full p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">لیست محصولات</h2>
+     
+      <div className="flex gap-2 mb-4">
+        <input
+          placeholder="نام محصول"
+          className="border p-1 rounded"
+          value={filters.name}
+          onChange={(e) => setFilters({ ...filters, name: e.target.value })}
+        />
+        <input
+          placeholder="برند"
+          className="border p-1 rounded"
+          value={filters.brand}
+          onChange={(e) => setFilters({ ...filters, brand: e.target.value })}
+        />
+        <input
+          placeholder="دسته‌بندی"
+          className="border p-1 rounded"
+          value={filters.category}
+          onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+        />
         <button
-          className="bg-green-500 text-white px-4 py-2 rounded"
-          onClick={() => setIsModalOpen(true)}
+          onClick={openAddModal}
+          className="bg-green-500 text-white px-3 py-1 rounded"
         >
           افزودن محصول
         </button>
       </div>
 
-      <div className="overflow-auto border rounded-lg">
-        <table className="w-full text-sm border-collapse">
+      
+      {loading ? (
+        <p> در حال بارگذاری...</p>
+      ) : (
+        <table className="w-full border-collapse border border-gray-300 text-sm">
           <thead className="bg-gray-100">
             <tr>
-              <th className="p-2 border-b">نام</th>
-              <th className="p-2 border-b">قیمت</th>
-              <th className="p-2 border-b">تعداد</th>
-              <th className="p-2 border-b">برند</th>
-              <th className="p-2 border-b">دسته‌بندی</th>
-              <th className="p-2 border-b">عملیات</th>
+              <th className="border px-2 py-1">نام</th>
+              <th className="border px-2 py-1">قیمت</th>
+              <th className="border px-2 py-1">موجودی</th>
+              <th className="border px-2 py-1">برند</th>
+              <th className="border px-2 py-1">تصاویر</th>
+              <th className="border px-2 py-1">دسته‌بندی</th>
+              <th className="border px-2 py-1">زیر دسته</th>
+              <th className="border px-2 py-1">توضیحات</th>
+              <th className="border px-2 py-1">عملیات</th>
             </tr>
           </thead>
           <tbody>
-            {products.map((p) => (
-              <tr key={p.id}>
-                <td className="p-2 border-b">{p.name}</td>
-                <td className="p-2 border-b">{p.price}</td>
-                <td className="p-2 border-b">{p.quantity}</td>
-                <td className="p-2 border-b">{p.brand}</td>
-                <td className="p-2 border-b">{p.category}</td>
-                <td className="p-2 border-b flex gap-2">
-                  <button
-                    className="px-2 py-1 bg-yellow-400 text-white rounded"
-                    onClick={() => {
-                      setEditingProduct(p);
-                      setIsModalOpen(true);
-                    }}
-                  >
-                    ویرایش
-                  </button>
-                  <button
-                    className="px-2 py-1 bg-red-500 text-white rounded"
-                    // onClick={() => handleDelete(p.id)}
-                  >
-                    حذف
-                  </button>
+            {products.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="text-center py-4">
+                   محصولی وجود ندارد
                 </td>
               </tr>
-            ))}
+            ) : (
+              products.map((p) => (
+                <tr key={p._id}>
+                  <td className="border px-2 py-1">{p.name}</td>
+                  <td className="border px-2 py-1">{p.price}</td>
+                  <td className="border px-2 py-1">{p.quantity}</td>
+                  <td className="border px-2 py-1">{p.brand}</td>
+                  <td className="border px-2 py-1">
+                    {p.images?.length > 0 ? (
+                      <img
+                        src={p.images[0]}
+                        alt={p.name}
+                        className="w-12 h-12 object-cover"
+                      />
+                    ) : (
+                      "-"
+                    )}
+                  </td>
+                  <td className="border px-2 py-1">{p.category}</td>
+                  <td className="border px-2 py-1">{p.subcategory}</td>
+                  <td className="border px-2 py-1">{p.description}</td>
+                  <td className="border px-2 py-1 flex gap-2">
+                    <button
+                      onClick={() => openEditModal(p)}
+                      className="bg-blue-500 text-white px-2 py-1 rounded"
+                    >
+                      ویرایش
+                    </button>
+                    <button
+                      onClick={() => handleDelete(p._id)}
+                      className="bg-red-500 text-white px-2 py-1 rounded"
+                    >
+                      حذف
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
+      )}
+
+      
+      <div className="mt-4 flex justify-center gap-2">
+        <button
+          disabled={page <= 1}
+          onClick={() => loadProducts(page - 1)}
+          className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
+        >
+          قبلی
+        </button>
+        <span>
+          صفحه {page} از {totalPages}
+        </span>
+        <button
+          disabled={page >= totalPages}
+          onClick={() => loadProducts(page + 1)}
+          className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
+        >
+          بعدی
+        </button>
       </div>
 
-      {/* <ProductModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingProduct(undefined);
-        }}
-        onSave={handleSave}
-        product={editingProduct}
-      /> */}
+      
+      {showModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white p-4 rounded w-96">
+            <h2 className="text-lg font-bold mb-2">
+              {editingProduct ? "ویرایش محصول" : "افزودن محصول"}
+            </h2>
+            <div className="flex flex-col gap-2">
+              <input
+                placeholder="نام"
+                className="border p-1 rounded"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
+              />
+              <input
+                type="number"
+                placeholder="قیمت"
+                className="border p-1 rounded"
+                value={formData.price}
+                onChange={(e) =>
+                  setFormData({ ...formData, price: Number(e.target.value) })
+                }
+              />
+              <input
+                type="number"
+                placeholder="موجودی"
+                className="border p-1 rounded"
+                value={formData.quantity}
+                onChange={(e) =>
+                  setFormData({ ...formData, quantity: Number(e.target.value) })
+                }
+              />
+              <input
+                placeholder="برند"
+                className="border p-1 rounded"
+                value={formData.brand}
+                onChange={(e) =>
+                  setFormData({ ...formData, brand: e.target.value })
+                }
+              />
+              <input
+                placeholder="تصاویر (لینک، جداشده با ,)"
+                className="border p-1 rounded"
+                value={formData.images.join(",")}
+                onChange={(e) =>
+                  setFormData({ ...formData, images: e.target.value.split(",") })
+                }
+              />
+              <input
+                placeholder="دسته‌بندی"
+                className="border p-1 rounded"
+                value={formData.category}
+                onChange={(e) =>
+                  setFormData({ ...formData, category: e.target.value })
+                }
+              />
+              <input
+                placeholder="زیر دسته"
+                className="border p-1 rounded"
+                value={formData.subcategory}
+                onChange={(e) =>
+                  setFormData({ ...formData, subcategory: e.target.value })
+                }
+              />
+              <textarea
+                placeholder="توضیحات"
+                className="border p-1 rounded"
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
+              />
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setShowModal(false)}
+                className="px-3 py-1 bg-gray-200 rounded"
+              >
+                انصراف
+              </button>
+              <button
+                onClick={handleSave}
+                className="px-3 py-1 bg-green-500 text-white rounded"
+              >
+                ذخیره
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
