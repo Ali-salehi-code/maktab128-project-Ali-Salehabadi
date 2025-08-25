@@ -8,6 +8,7 @@ import {
   deleteProduct,
   Product,
 } from "@/components/utils/api";
+import { error } from "console";
 
 export default function ProductList() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -26,7 +27,8 @@ export default function ProductList() {
     try {
       setLoading(true);
       const res = await getProducts();
-      setProducts(res.data);
+      console.log(res.data);
+      setProducts(res.data.data.products);
     } catch (err) {
       console.error(" خطا در گرفتن محصولات:", err);
     } finally {
@@ -81,7 +83,7 @@ export default function ProductList() {
       console.error(" خطا در حذف محصول:", err);
     }
   };
-
+  console.log(products)
   return (
     <div className="p-4">
       <h1 className="text-xl font-bold mb-4">مدیریت محصولات</h1>
@@ -113,7 +115,7 @@ export default function ProductList() {
             </tr>
           </thead>
           <tbody>
-          {products.map((product) => (
+          {products&& products?.length >0 &&products?.map((product) => (
             <tr key={product.id} className="text-center">
               <td className="border px-4 py-2">{product.name}</td>
               <td className="border px-4 py-2">{product.price}</td>
@@ -122,6 +124,7 @@ export default function ProductList() {
               <td className="border px-4 py-2">
                 {(product as any).images?.map((url: string, index: number) => (
                   <img key={index} src={url} alt={product.name} className="h-16 mx-1 inline-block" />
+                  
                 ))}
               </td>
               <td className="border px-4 py-2">{(product as any).category}</td>
@@ -143,6 +146,7 @@ export default function ProductList() {
                 No products found.
               </td>
             </tr>
+            
           )}
         </tbody>
         </table>

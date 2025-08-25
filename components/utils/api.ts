@@ -23,7 +23,7 @@ api.interceptors.request.use((config) => {
 });
 
 
-export const getProducts = () => api.get<Product[]>("/products");
+export const getProducts = () => api.get<Product[]>("/api/products");
 
 export const addProduct = (product: Omit<Product, "id">) =>
   api.post("/products", product);
