@@ -1,37 +1,55 @@
 import axios from "axios";
 
-const API_BASE = "http://localhost:8000"; 
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://127.0.0.1:8000";
 
-export type Product = {
-  id: number;
-  name: string;
-  price: number;
-  stock: number;
-};
-
-
-const api = axios.create({
+export const api = axios.create({
   baseURL: API_BASE,
 });
 
+// اضافه کردن توکن اتوماتیک
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("token");
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
   return config;
 });
 
+// 👇 تعریف تایپ Product
+export interface Product {
+  _id?: string;   // برای MongoDB
+  id?: string;    // برای مواقع دیگه
+  name: string;
+  price: number;
+  stock: number;
+  description: string;
+}
 
-export const getProducts = () => api.get<Product[]>("/api/products");
+// -------------------------
+// محصولات
+// -------------------------
+export const getProducts = () => api.get("/api/products");
+export const getProduct = (id: string) => api.get(`/api/products/${id}`);
+export const addProduct = (product: Product) =>
+  api.post("/api/products", product);
+export const updateProduct = (id: string, product: Product) =>
+  api.patch(`/api/products/${id}`, product);
+export const deleteProduct = (id: string) => api.delete(`/api/products/${id}`);
 
-export const addProduct = (product: Omit<Product, "id">) =>
-  api.post("/products", product);
+// -------------------------
+// سفارش‌ها
+// -------------------------
+export const getOrders = () => api.get("/api/orders");
+export const addOrder = (order: any) => api.post("/api/orders", order);
+export const updateOrder = (id: string, order: any) =>
+  api.patch(`/api/orders/${id}`, order);
 
-export const addProductsBulk = (products: Omit<Product, "id">[]) =>
-  api.post("/products/bulk", products);
+// -------------------------
+// احراز هویت
+// -------------------------
+export const loginUser = (data: { username: string; password: string }) =>
+  api.post("/api/auth/login", data);
 
-export const updateProduct = (id: number, product: Omit<Product, "id">) =>
-  api.put(`/products/${id}`, product);
-
-export const deleteProduct = (id: number) => api.delete(`/products/${id}`);
+export const signupUser = (data: any) => api.post("/api/auth/signup", data);

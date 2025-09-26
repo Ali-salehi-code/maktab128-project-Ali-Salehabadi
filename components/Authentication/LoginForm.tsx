@@ -5,7 +5,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
-import axios from "axios";
+import { loginUser } from "@/components/utils/api";
 
 const schema = z.object({
   username: z.string().min(3, "نام کاربری باید حداقل ۳ کاراکتر باشد"),
@@ -27,18 +27,23 @@ export default function LoginForm() {
 
   const onSubmit = async (data: FormData) => {
     try {
-      const res = await axios.post("http://127.0.0.1:8000/api/auth/login", data);
+      const res = await loginUser(data);
+
+      const token = res.data.token?.accessToken;
+      if (!token) {
+        throw new Error("توکن از سرور دریافت نشد");
+      }
 
       
-      const token = res.data.token;
       localStorage.setItem("token", token);
 
-      toast.success("ورود موفقیت‌آمیز");
+      toast.success("ورود موفقیت‌آمیز 🎉");
 
       setTimeout(() => {
         router.push("/admin/dashboard");
       }, 1000);
     } catch (err: any) {
+      console.error(err);
       toast.error(err.response?.data?.message || "خطا در ورود");
     }
   };
