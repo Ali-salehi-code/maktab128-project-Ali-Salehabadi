@@ -1,16 +1,20 @@
-
 export interface Product {
-  _id?: string;        
-  id?: string;        
+  _id?: string;
+  id2?: string;
   name: string;
   price: number;
   stock: number;
   description?: string;
 }
 
+export interface CartItem {
+  product: Product;
+  qty: number;
+}
+
 export interface Order {
-  id?: string;
   _id?: string;
+  id2?: string;
   user: string;
   items: Product[];
   total: number;

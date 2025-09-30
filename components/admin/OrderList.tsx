@@ -1,29 +1,36 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getOrders, addOrder, updateOrder } from "@/components/utils/api";
-import { Order } from "@/components/utils/types";
+import { getOrders, addOrder, updateOrder } from "@/utils/api";
+import type { Order, Product } from "@/utils/types";
+
+type OrderForm = Omit<Order, "_id" | "id">;
 
 export default function OrderList() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
-  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
-  const [formData, setFormData] = useState<Omit<Order, "id" | "_id">>({
+  const [editing, setEditing] = useState<Order | null>(null);
+  const [form, setForm] = useState<OrderForm>({
     user: "",
     items: [],
     total: 0,
     status: "pending",
   });
 
-  // گرفتن سفارش‌ها
   const loadOrders = async () => {
     try {
       setLoading(true);
       const res = await getOrders();
-      const ordersArray = res.data.data?.orders || res.data.data || res.data;
-      setOrders(ordersArray);
+      const list: Order[] =
+        res?.data?.orders ??
+        res?.data?.data?.orders ??
+        res?.data?.data ??
+        res?.data ??
+        [];
+      setOrders(Array.isArray(list) ? list : []);
     } catch (err) {
-      console.error("❌ خطا در گرفتن سفارش‌ها:", err);
+      console.error("خطا در گرفتن سفارش‌ها:", err);
+      setOrders([]);
     } finally {
       setLoading(false);
     }
@@ -33,88 +40,115 @@ export default function OrderList() {
     loadOrders();
   }, []);
 
-  // ذخیره یا ویرایش سفارش
   const handleSave = async () => {
     try {
-      if (editingOrder) {
-        await updateOrder(editingOrder.id || editingOrder._id!, formData);
+      if (editing) {
+        await updateOrder(editing._id || (editing as any).id, form);
       } else {
-        await addOrder(formData);
+        await addOrder(form);
       }
-      setEditingOrder(null);
-      setFormData({ user: "", items: [], total: 0, status: "pending" });
+      setEditing(null);
+      setForm({ user: "", items: [], total: 0, status: "pending" });
       loadOrders();
     } catch (err) {
-      console.error("❌ خطا در ذخیره سفارش:", err);
+      console.error("خطا در ذخیره سفارش:", err);
     }
   };
 
   return (
-    <div className="p-6 mt-10">
-      <h1 className="text-2xl font-bold text-center mb-6">مدیریت سفارش‌ها</h1>
+    <div className="p-6 space-y-6">
+      <h1 className="text-2xl font-bold text-center">مدیریت سفارش‌ها</h1>
 
       {loading ? (
-        <p className="text-center text-gray-500">...در حال بارگذاری</p>
+        <p className="text-center text-gray-500">در حال بارگذاری…</p>
       ) : (
-        <table className="table-auto w-full border-collapse border border-gray-300 shadow-md rounded-lg overflow-hidden">
-          <thead className="bg-gray-200">
+        <table className="w-full border border-gray-300 rounded overflow-hidden">
+          <thead className="bg-gray-100">
             <tr>
               <th className="px-4 py-2 border">کاربر</th>
               <th className="px-4 py-2 border">مجموع</th>
               <th className="px-4 py-2 border">وضعیت</th>
+              <th className="px-4 py-2 border">عملیات</th>
             </tr>
           </thead>
           <tbody>
             {orders.map((o) => (
-              <tr
-                key={o.id || o._id}
-                className="odd:bg-white even:bg-gray-50 hover:bg-gray-100 transition"
-              >
+              <tr key={(o as any)._id || (o as any).id}>
                 <td className="px-4 py-2 border">{o.user}</td>
                 <td className="px-4 py-2 border">{o.total}</td>
                 <td className="px-4 py-2 border">{o.status}</td>
+                <td className="px-4 py-2 border">
+                  <button
+                    className="px-3 py-1 rounded border"
+                    onClick={() => {
+                      setEditing(o);
+                      setForm({
+                        user: o.user,
+                        items: o.items as Product[],
+                        total: o.total,
+                        status: o.status,
+                      });
+                    }}
+                  >
+                    ویرایش
+                  </button>
+                </td>
               </tr>
             ))}
+            {orders.length === 0 && (
+              <tr>
+                <td className="px-4 py-6 text-center text-gray-500" colSpan={4}>
+                  سفارشی ثبت نشده است
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       )}
 
-      {/* فرم افزودن سفارش */}
-      <div className="mt-6">
-        <h2 className="text-xl font-semibold mb-4">افزودن سفارش</h2>
+      <div className="space-y-3">
+        <h2 className="text-xl font-semibold">{editing ? "ویرایش سفارش" : "افزودن سفارش"}</h2>
+
         <input
           type="text"
+          className="border rounded p-2 w-full"
           placeholder="کاربر"
-          value={formData.user}
-          onChange={(e) => setFormData({ ...formData, user: e.target.value })}
-          className="border px-3 py-2 w-full mb-2 rounded"
+          value={form.user}
+          onChange={(e) => setForm((f) => ({ ...f, user: e.target.value }))}
         />
         <input
           type="number"
+          className="border rounded p-2 w-full"
           placeholder="مجموع"
-          value={formData.total}
-          onChange={(e) =>
-            setFormData({ ...formData, total: Number(e.target.value) })
-          }
-          className="border px-3 py-2 w-full mb-2 rounded"
+          value={form.total}
+          onChange={(e) => setForm((f) => ({ ...f, total: Number(e.target.value) || 0 }))}
         />
         <select
-          value={formData.status}
-          onChange={(e) =>
-            setFormData({ ...formData, status: e.target.value as Order["status"] })
-          }
-          className="border px-3 py-2 w-full mb-2 rounded"
+          className="border rounded p-2 w-full"
+          value={form.status}
+          onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as Order["status"] }))}
         >
-          <option value="pending">در انتظار</option>
-          <option value="shipped">ارسال شده</option>
-          <option value="delivered">تحویل داده شده</option>
+          <option value="pending">pending</option>
+          <option value="shipped">shipped</option>
+          <option value="delivered">delivered</option>
         </select>
-        <button
-          onClick={handleSave}
-          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
-        >
-          ذخیره
-        </button>
+
+        <div className="flex gap-2">
+          <button onClick={handleSave} className="px-4 py-2 rounded bg-black text-white">
+            ذخیره
+          </button>
+          {editing && (
+            <button
+              onClick={() => {
+                setEditing(null);
+                setForm({ user: "", items: [], total: 0, status: "pending" });
+              }}
+              className="px-4 py-2 rounded border"
+            >
+              انصراف
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

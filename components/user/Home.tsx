@@ -1,79 +1,57 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getProducts } from "@/components/utils/api";
-import type { Product } from "@/components/utils/types";
+import type { Product } from "@/utils/types";
+import { addToCart } from "@/utils/cart";
+import { getProducts } from "@/utils/api";
 
 export default function Home() {
-  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
-
-  
-  const loadProducts = async () => {
-    try {
-      setLoading(true);
-      const res = await getProducts();
-
-      
-      const list: Product[] =
-        res?.data?.data?.products ||
-        res?.data?.data ||
-        res?.data ||
-        [];
-
-      if (Array.isArray(list)) {
-        setProducts(list);
-      } else {
-        setProducts([]);
-      }
-    } catch (err) {
-      console.error("❌ خطا در گرفتن محصولات:", err);
-      setProducts([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [list, setList] = useState<Product[]>([]);
 
   useEffect(() => {
-    loadProducts();
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await getProducts();
+        const products: Product[] = res.data?.products ?? [];
+        setList(products);
+      } catch (err) {
+        console.error("Error fetching products:", err);
+        setList([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
 
-  
-  const addToCart = (product: Product) => {
-    console.log("🛒 افزودن به سبد خرید:", product);
-   
+  const handleAdd = (p: Product) => {
+    addToCart(p, 1);
+    alert(`${p.name} به سبد اضافه شد `);
   };
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold text-center mb-6">🛍️ فروشگاه</h1>
+      <h1 className="text-2xl font-bold text-center mb-6"> لیست محصولات</h1>
 
       {loading ? (
-        <p className="text-center text-gray-500">...در حال بارگذاری</p>
+        <p className="text-center">در حال بارگذاری...</p>
+      ) : list.length === 0 ? (
+        <p className="text-center text-gray-500">هیچ محصولی موجود نیست.</p>
       ) : (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3">
-          {products.map((p, index) => {
-            const key = p.id ?? p._id ?? index; 
-            return (
-              <div
-                key={key}
-                className="border rounded-lg shadow hover:shadow-lg transition p-4 flex flex-col"
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {list.map((p) => (
+            <div key={p._id ?? p.id2 ?? p.name} className="border rounded-lg p-4 shadow">
+              <h2 className="text-lg font-bold">{p.name}</h2>
+              <p>قیمت: {p.price} تومان</p>
+              <button
+                onClick={() => handleAdd(p)}
+                className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
               >
-                <h2 className="font-bold text-lg mb-2">{p.name}</h2>
-                <p className="text-gray-700 mb-1">💲 قیمت: {p.price} تومان</p>
-                <p className="text-gray-500 mb-1">📦 موجودی: {p.stock}</p>
-                <p className="text-gray-500 mb-4">
-                  {p.description || "بدون توضیحات"}
-                </p>
-                <button
-                  onClick={() => addToCart(p)}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded mt-auto"
-                >
-                  افزودن به سبد خرید 🛒
-                </button>
-              </div>
-            );
-          })}
+                افزودن به سبد
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>

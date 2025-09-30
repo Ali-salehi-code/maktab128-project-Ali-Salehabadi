@@ -1,121 +1,77 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getCart, setQty, inc, dec } from "@/utils/cart";
+import type { CartItem, Product } from "@/utils/types";
 
-import { loadCart as getCart, inc, dec, setQty } from "@/components/utils/cart";
-import type { CartItem } from "@/components/utils/cart";
+
+const idof = (p: Product): string => p?._id ?? p.id2 ?? p.name ?? "";
 
 export default function MyCart() {
   const [items, setItems] = useState<CartItem[]>([]);
 
-
-  const pid = (p: CartItem["product"]) => p._id ?? p.id ?? "";
-
+ 
   useEffect(() => {
     setItems(getCart());
   }, []);
 
+  
   const handleInc = (id: string) => {
-    setItems([...inc(id, 1)]);
+    const updated = inc(id, 1);
+    setItems([...updated]);
   };
 
+  
   const handleDec = (id: string) => {
-    setItems([...dec(id, 1)]);
+    const updated = dec(id, 1);
+    setItems([...updated]);
   };
 
-  const handleChangeQty = (id: string, qty: number) => {
-   
-    const safe = Math.max(0, Number(qty) || 0);
-    setItems([...setQty(id, safe)]);
+ 
+  const handleChangeQty = (id: string, qtyRaw: number) => {
+    const qty = Number.isFinite(qtyRaw) ? Math.max(0, Math.floor(Number(qtyRaw))) : 0;
+    let updated = setQty(id, qty);
+
+    if (qty === 0) {
+      updated = updated.filter((it) => idof(it.product) !== id);
+    }
+
+    setItems([...updated]);
   };
 
-  const total = items.reduce(
-    (sum, it) => sum + (Number(it.product.price) || 0) * (Number(it.qty) || 0),
-    0
-  );
+ 
+  const total = items.reduce((sum, it) => {
+    const price = Number((it.product as Product)?.price) || 0;
+    return sum + price * (it.qty as number || 0);
+  }, 0);
 
   return (
-    <div className="p-6 mt-10 max-w-5xl mx-auto">
-      <h1 className="text-2xl font-bold text-center mb-6">🛒 سبد خرید شما</h1>
+    <div className="p-6 mt-10">
+      <h1 className="text-2xl font-bold text-center mb-6">سبد خرید شما</h1>
 
       {items.length === 0 ? (
-        <p className="text-center text-gray-500">سبد خرید شما خالی است…</p>
+        <p className="text-center text-gray-500">سبد خرید شما خالی است.</p>
       ) : (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {items.map((it, index) => {
-              const p = it.product;
-              const id = pid(p) || String(index);
-
-              return (
-                <div
-                  key={`${id}-${index}`}
-                  className="border rounded-xl shadow-lg p-4 flex flex-col justify-between bg-white hover:shadow-2xl transition"
-                >
-                  <div>
-                    <h2 className="text-lg font-semibold mb-2">{p.name}</h2>
-                    <p className="text-gray-700 mb-1">قیمت: {p.price} تومان</p>
-                    <p className="text-gray-500 mb-1">موجودی: {p.stock}</p>
-                    {p.description ? (
-                      <p className="text-gray-500 mb-3 line-clamp-2">
-                        {p.description}
-                      </p>
-                    ) : null}
-                  </div>
-
-                  <div className="mt-3">
-                    <div className="flex items-center gap-3">
-                      <button
-                        className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300"
-                        onClick={() => handleDec(id)}
-                        aria-label="کاهش تعداد"
-                      >
-                        −
-                      </button>
-
-                      <input
-                        type="number"
-                        min={0}
-                        step={1}
-                        className="w-20 text-center border rounded"
-                        value={it.qty}
-                        onChange={(e) =>
-                          handleChangeQty(id, Number(e.currentTarget.value))
-                        }
-                      />
-
-                      <button
-                        className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300"
-                        onClick={() => handleInc(id)}
-                        aria-label="افزایش تعداد"
-                      >
-                        +
-                      </button>
-                    </div>
-
-                    <p className="mt-3 text-sm text-green-600">
-                      جمع جزء: {(Number(p.price) || 0) * (Number(it.qty) || 0)} تومان
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 border-t pt-4">
-            <p className="text-xl font-semibold">
-              جمع کل: <span className="text-green-600">{total}</span> تومان
-            </p>
-            <div className="flex gap-3">
-              <button className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200">
-                ادامه خرید
-              </button>
-              <button className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">
-                ثبت سفارش
-              </button>
+        <div>
+          {items.map((it) => (
+            <div key={idof(it.product)} className="flex justify-between items-center border-b py-2">
+              <span>{(it.product as Product).name}</span>
+              <div className="flex gap-2">
+                <button onClick={() => handleDec(idof(it.product))} className="px-2 bg-red-400 text-white rounded">-</button>
+                <input
+                  type="number"
+                  value={it.qty}
+                  onChange={(e) => handleChangeQty(idof(it.product), Number(e.target.value))}
+                  className="w-12 text-center border rounded"
+                />
+                <button onClick={() => handleInc(idof(it.product))} className="px-2 bg-green-400 text-white rounded">+</button>
+              </div>
+              <span>{Number((it.product as Product).price) * it.qty} تومان</span>
             </div>
-          </div>
-        </>
+          ))}
+
+          <div className="text-right font-bold mt-4">جمع کل: {total} تومان</div>
+        </div>
       )}
     </div>
   );
